@@ -9,7 +9,7 @@
   backdrop-filter: blur(10px);
   padding: 15px 40px;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
   position: sticky;
@@ -18,10 +18,11 @@
   border-bottom: 1px solid rgba(37, 95, 56, 0.3);
 }
 
-.nav-left {
+.nav-logo-container {
   display: flex;
   align-items: center;
   gap: 12px;
+  justify-content: center;
 }
 
 .logo-icon {
@@ -88,38 +89,111 @@
   }
 }
 
-.nav-right {
-  display: flex;
-  align-items: center;
-  gap: 30px;
-}
 
-.nav-link {
-  color: #e0e0e0;
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 1rem;
-  transition: all 0.3s ease;
+.hero-banner {
+  background: transparent;
+  padding: 80px 20px;
+  text-align: center;
+  border-bottom: 1px solid rgba(37, 95, 56, 0.2);
   position: relative;
+  overflow: hidden;
 }
 
-.nav-link:hover {
-  color: #1F7D53;
-}
-
-.nav-link::after {
+.hero-banner::before {
   content: '';
   position: absolute;
-  bottom: -5px;
+  top: 0;
   left: 0;
-  width: 0;
-  height: 2px;
-  background: linear-gradient(135deg, #255F38 0%, #1F7D53 100%);
-  transition: width 0.3s ease;
+  right: 0;
+  bottom: 0;
+  background: transparent;
+  pointer-events: none;
 }
 
-.nav-link:hover::after {
-  width: 100%;
+.hero-content {
+  max-width: 1000px;
+  margin: 0 auto 50px auto;
+  position: relative;
+  z-index: 1;
+  animation: heroTitleEntrance 1s ease-out;
+}
+
+.hero-content-subtitle {
+  max-width: 900px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+  animation: heroSubtitleEntrance 1.2s ease-out 0.3s both;
+}
+
+.hero-title {
+  font-size: 4.5rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0;
+  letter-spacing: -1px;
+  line-height: 1.05;
+  background: linear-gradient(135deg, #255F38 0%, #1F7D53 50%, #3A9F6B 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 200% 200%;
+  animation: logoColorShift 4s ease-in-out infinite, heroTitlePulse 3s ease-in-out infinite;
+  transform-origin: center;
+  transition: transform 0.3s ease;
+}
+
+.hero-title:hover {
+  transform: scale(1.05);
+}
+
+.hero-subtitle {
+  font-size: 1.5rem;
+  color: #e0e0e0;
+  line-height: 1.7;
+  margin: 0;
+  font-weight: 300;
+  max-width: 850px;
+  margin-left: auto;
+  margin-right: auto;
+  letter-spacing: 0.3px;
+  transition: all 0.4s ease;
+}
+
+.hero-subtitle:hover {
+  transform: scale(1.02);
+  color: #f0f0f0;
+}
+
+@keyframes heroTitleEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes heroSubtitleEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes heroTitlePulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
 }
 
 .landing-container-wrapper {
@@ -127,7 +201,7 @@
   align-items: center;
   justify-content: center;
   padding: 40px 20px;
-  min-height: calc(100vh - 80px);
+  min-height: calc(100vh - 200px);
 }
 
 .landing-container {
@@ -154,6 +228,7 @@
   margin: 0 0 30px 0;
   text-align: center;
 }
+
 
 .upload-box {
   border: 3px dashed rgba(37, 95, 56, 0.5);
@@ -344,16 +419,27 @@
     font-size: 1.1rem;
   }
 
-  .nav-right {
-    gap: 15px;
-  }
-
-  .nav-link {
-    font-size: 0.9rem;
-  }
-
   .landing-container {
     padding: 30px 20px;
+  }
+
+  .hero-banner {
+    padding: 50px 20px;
+  }
+
+  .hero-content {
+    margin-bottom: 30px;
+  }
+
+  .hero-title {
+    font-size: 2.5rem;
+    letter-spacing: -0.3px;
+  }
+
+  .hero-subtitle {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    letter-spacing: 0.2px;
   }
 
   .title {

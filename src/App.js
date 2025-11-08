@@ -61,7 +61,7 @@ function App() {
   return (
     <div className="App">
       <nav className="navbar">
-        <div className="nav-left">
+        <div className="nav-logo-container">
           <div className="logo-icon">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 2L2 7l10 5 10-5-10-5z" />
@@ -71,11 +71,19 @@ function App() {
           </div>
           <span className="logo-name">PopoAI</span>
         </div>
-        <div className="nav-right">
-          <a href="#about" className="nav-link">About us</a>
-          <a href="#pricing" className="nav-link">Pricing</a>
-        </div>
       </nav>
+      <div className="hero-banner">
+        <div className="hero-content">
+          <h2 className="hero-title">Where AI Efficiency Meets Small Businesses</h2>
+        </div>
+        <div className="hero-content-subtitle">
+          <p className="hero-subtitle">
+            Upload your financial receipts and let PopoAI analyze your business expenses. 
+            Get a comprehensive economic outlook summary that helps you identify cost-cutting opportunities 
+            by prioritizing essential needs and eliminating unnecessary expenses.
+          </p>
+        </div>
+      </div>
       <div className="landing-container-wrapper">
         <div className="landing-container">
           <h1 className="title">Upload Your Files</h1>
