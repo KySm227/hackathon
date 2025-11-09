@@ -1,19 +1,14 @@
 # 🚀 PopoAI - Intelligent Receipt Analysis for Small Businesses
 
-[![Demo Video](https://img.shields.io/badge/📹-Watch%20Demo-red?style=for-the-badge)](#demo-video)
-
-> **Watch the full demo video below:**
-
 <div align="center">
 
 ### 🎬 Project Demo
 
-<video width="800" controls>
-  <source src="./demo.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+[![PopoAI Demo Video](https://img.youtube.com/vi/Hym_mtoNNXs/maxresdefault.jpg)](https://www.youtube.com/watch?v=Hym_mtoNNXs)
 
-**Alternative:** [Download the demo video](./demo.mp4)
+**Click the image above to watch the full demo on YouTube**
+
+[![Watch on YouTube](https://img.shields.io/badge/▶-Watch%20on%20YouTube-red?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=Hym_mtoNNXs)
 
 </div>
 
