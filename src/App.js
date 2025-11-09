@@ -10,6 +10,7 @@ function App() {
   const [isDraggingResults, setIsDraggingResults] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
+  const [analysisResults, setAnalysisResults] = useState([]);
   const fileInputRef = useRef(null);
   const resultsFileInputRef = useRef(null);
 
@@ -68,14 +69,52 @@ function App() {
       });
 
       if (!response.ok) {
-        throw new Error("Upload failed");
+        const errorData = await response.json().catch(() => ({ error: "Upload failed" }));
+        throw new Error(errorData.error || errorData.message || "Upload failed");
       }
 
       const data = await response.json();
       console.log("Files uploaded successfully:", data);
+      console.log("NVIDIA Analysis Results:", data.analyses);
+      console.log("Number of analyses:", data.analyses?.length);
 
       // Add files to uploadedFiles state
-      setUploadedFiles((prev) => [...prev, ...filesToUpload]);
+      setUploadedFiles((prev) => {
+        const newFiles = [...prev, ...filesToUpload];
+        console.log("Updated uploadedFiles:", newFiles.length);
+        return newFiles;
+      });
+
+      // Store analysis results - ensure we have the same number as files
+      console.log("Response data:", data);
+      console.log("Has analyses:", !!data.analyses);
+      console.log("Analyses length:", data.analyses?.length);
+      
+      if (data.analyses && Array.isArray(data.analyses) && data.analyses.length > 0) {
+        setAnalysisResults((prev) => {
+          const newResults = [...prev, ...data.analyses];
+          console.log("Updated analysisResults:", newResults.length);
+          console.log("Analysis results content:", newResults);
+          console.log("Each analysis:", newResults.map(a => ({
+            name: a.originalName,
+            hasAnalysis: !!a.analysis,
+            error: a.error
+          })));
+          return newResults;
+        });
+      } else {
+        console.warn("No analyses received from server or analyses array is empty");
+        console.warn("Full response data:", JSON.stringify(data, null, 2));
+        // Create placeholder analyses for files that don't have results
+        setAnalysisResults((prev) => {
+          const placeholders = filesToUpload.map(file => ({
+            originalName: file.name,
+            analysis: null,
+            error: data.analyses ? "Analysis array is empty" : "Analysis not received from server"
+          }));
+          return [...prev, ...placeholders];
+        });
+      }
 
       return data;
     } catch (error) {
@@ -104,6 +143,7 @@ function App() {
     setUploadedFiles([]);
     setSelectedFileIndex(0);
     setFiles([]);
+    setAnalysisResults([]);
   };
 
   const handleResultsDragEnter = (e) => {
@@ -149,6 +189,7 @@ function App() {
 
   const handleRemoveUploadedFile = (index) => {
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
+    setAnalysisResults((prev) => prev.filter((_, i) => i !== index));
     if (selectedFileIndex >= index && selectedFileIndex > 0) {
       setSelectedFileIndex(selectedFileIndex - 1);
     } else if (selectedFileIndex >= uploadedFiles.length - 1) {
