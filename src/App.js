@@ -355,7 +355,7 @@ function App() {
           <div className="results-panel">
             <div className="result-window result-window-upper">
               <div className="panel-header">
-                <h3>Results - Upper Window</h3>
+                <h3> Future Receipt Analysis </h3>
               </div>
               <div className="result-content">
                 <p className="result-placeholder">
@@ -365,7 +365,7 @@ function App() {
             </div>
             <div className="result-window result-window-lower">
               <div className="panel-header">
-                <h3>Results - Lower Window</h3>
+                <h3> Popo's Receipt Summary</h3>
               </div>
               <div className="result-content">
                 <p className="result-placeholder">
