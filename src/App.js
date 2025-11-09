@@ -41,12 +41,60 @@ function App() {
     setFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
   };
 
-  const handleSendFiles = () => {
+  const handleSendFiles = async () => {
     if (files.length > 0) {
-      // Here you can add your file upload logic
-      console.log("Sending files:", files);
-      alert(`Sending ${files.length} file(s)...`);
-      // You can add API call here to upload files
+      try {
+        // First check if server is running
+        try {
+          const healthCheck = await fetch("http://localhost:3001/api/health");
+          if (!healthCheck.ok) {
+            throw new Error("Server is not responding");
+          }
+        } catch (healthError) {
+          throw new Error("Cannot connect to server. Make sure the backend server is running on port 3001. Start it with: cd Backend/Server && node server.js");
+        }
+
+        const formData = new FormData();
+        files.forEach((file) => {
+          formData.append("files", file);
+        });
+
+        const response = await fetch("http://localhost:3001/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          // Try to get error message from response
+          let errorMessage = "File upload failed";
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch (e) {
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          }
+          throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+        console.log("Files uploaded successfully:", data);
+        alert(`Successfully uploaded ${data.files.length} file(s)!`);
+        
+        // Files are now saved on the server and can be used with NVIDIA AI model
+        // The file paths are available in data.files array
+        setFiles([]); // Clear files after successful upload
+      } catch (error) {
+        console.error("Error uploading files:", error);
+        let errorMessage = "Failed to upload files. Please try again.";
+        
+        if (error.message) {
+          errorMessage = error.message;
+        } else if (error.name === "TypeError" && error.message.includes("fetch")) {
+          errorMessage = "Cannot connect to server. Make sure the backend server is running on port 3001.";
+        }
+        
+        alert(`Upload failed: ${errorMessage}`);
+      }
     }
   };
 
