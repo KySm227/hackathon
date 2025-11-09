@@ -50,8 +50,8 @@ app.post("/api/upload", upload.array("files"), async (req, res) => {
       return res.status(400).json({ error: "No files uploaded" });
     }
 
-    // Validate file types - accept .txt, .csv, and .pdf (PDFs are accepted but not parsed)
-    const allowedExtensions = ['.txt', '.csv', '.pdf'];
+    // Validate file types - only accept .txt or .csv
+    const allowedExtensions = ['.txt', '.csv'];
     const invalidFiles = [];
     const validFiles = [];
 
@@ -72,14 +72,14 @@ app.post("/api/upload", upload.array("files"), async (req, res) => {
 
     if (invalidFiles.length > 0) {
       return res.status(400).json({ 
-        error: `Invalid file types. Only .txt, .csv, and .pdf files are accepted.`,
+        error: `Invalid file types. Only .txt and .csv files are accepted.`,
         invalidFiles: invalidFiles,
         message: `Rejected ${invalidFiles.length} file(s): ${invalidFiles.join(', ')}`
       });
     }
 
     if (validFiles.length === 0) {
-      return res.status(400).json({ error: "No valid files uploaded. Only .txt, .csv, and .pdf files are accepted." });
+      return res.status(400).json({ error: "No valid files uploaded. Only .txt and .csv files are accepted." });
     }
 
     const uploadedFiles = validFiles.map((file) => ({
