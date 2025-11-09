@@ -6,7 +6,7 @@ import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
-import { readFileForNvidia } from "./utils/fileReader.js";
+import { readFileForNvidia, splitFileByDays } from "./utils/fileReader.js";
 import { sendNemotronMessage } from "./Nvidia Model/nemotron.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -130,66 +130,91 @@ app.post("/api/upload", upload.array("files"), async (req, res) => {
 
     for (const file of validFiles) {
       try {
-        // Read the uploaded file and convert it to a variable
-        const fileData = await readFileForNvidia(file.path);
-        console.log(`Processing file: ${file.originalname} (Text file)`);
+        // Try to split file by days - if file contains multiple days, process each separately
+        const daySections = await splitFileByDays(file.path);
+        console.log(`File ${file.originalname} split into ${daySections.length} day(s)`);
 
-        // **MODIFIED: Use the detailed analysis prompt**
-        const prompt = ANALYSIS_PROMPT;
+        // Process each day section separately
+        for (const daySection of daySections) {
+          try {
+            // Create file data object for this day section
+            const fileData = {
+              content: daySection.content,
+              mimeType: path.extname(file.originalname).toLowerCase() === '.csv' ? 'text/csv' : 'text/plain',
+              isImage: false,
+              text: daySection.content,
+            };
 
-        // Send the fileData to NVIDIA model for analysis
-        const stream = await sendNemotronMessage(prompt, fileData);
+            console.log(`Processing ${daySection.dayLabel} from file: ${file.originalname}`);
 
-        // Collect the streaming response
-        let output = "";
-        for await (const chunk of stream) {
-          const content = chunk.choices?.[0]?.delta?.content || "";
-          output += content;
+            // **MODIFIED: Use the detailed analysis prompt**
+            const prompt = ANALYSIS_PROMPT;
+
+            // Send the day section to NVIDIA model for analysis
+            const stream = await sendNemotronMessage(prompt, fileData);
+
+            // Collect the streaming response
+            let output = "";
+            for await (const chunk of stream) {
+              const content = chunk.choices?.[0]?.delta?.content || "";
+              output += content;
+            }
+
+            console.log(
+              `Analysis output length: ${output.length} for ${daySection.dayLabel} from ${file.originalname}`
+            );
+            console.log(`Analysis preview: ${output.substring(0, 100)}...`);
+
+            // Create a unique identifier for this day section
+            const dayIdentifier = daySections.length > 1 
+              ? `${file.originalname} - ${daySection.dayLabel}`
+              : file.originalname;
+
+            analysisResults.push({
+              filename: file.filename,
+              originalName: dayIdentifier,
+              analysis: output || "No analysis generated",
+              fileType: "text",
+              mimeType: fileData.mimeType,
+              dayIndex: daySection.dayIndex,
+              dayLabel: daySection.dayLabel,
+            });
+
+            console.log(`Analysis completed for: ${daySection.dayLabel} from ${file.originalname}`);
+          } catch (dayAnalysisError) {
+            console.error(
+              `Error analyzing ${daySection.dayLabel} from ${file.originalname}:`,
+              dayAnalysisError
+            );
+            analysisResults.push({
+              filename: file.filename,
+              originalName: `${file.originalname} - ${daySection.dayLabel}`,
+              analysis: null,
+              error: dayAnalysisError.message,
+              dayIndex: daySection.dayIndex,
+              dayLabel: daySection.dayLabel,
+            });
+          }
         }
-
-        console.log(
-          `Analysis output length: ${output.length} for ${file.originalname}`
-        );
-        console.log(`Analysis preview: ${output.substring(0, 100)}...`);
-
-        analysisResults.push({
-          filename: file.filename,
-          originalName: file.originalname,
-          analysis: output || "No analysis generated",
-          fileType: "text",
-          mimeType: fileData.mimeType,
-        });
-
-        console.log(`Analysis completed for: ${file.originalname}`);
-      } catch (analysisError) {
+      } catch (fileError) {
         console.error(
-          `Error analyzing file ${file.originalname}:`,
-          analysisError
+          `Error processing file ${file.originalname}:`,
+          fileError
         );
         analysisResults.push({
           filename: file.filename,
           originalName: file.originalname,
           analysis: null,
-          error: analysisError.message,
+          error: fileError.message,
         });
       }
     }
 
-    // Ensure we have analysis results for all files
-    if (analysisResults.length !== uploadedFiles.length) {
-      console.warn(
-        `Mismatch: ${uploadedFiles.length} files but ${analysisResults.length} analyses`
-      );
-      // Add placeholder analyses for missing ones
-      for (let i = analysisResults.length; i < uploadedFiles.length; i++) {
-        analysisResults.push({
-          filename: uploadedFiles[i].filename,
-          originalName: uploadedFiles[i].originalName,
-          analysis: null,
-          error: "Analysis failed or was not completed",
-        });
-      }
-    }
+    // Note: analysisResults.length may be greater than uploadedFiles.length
+    // if files contain multiple days (each day becomes a separate analysis)
+    console.log(
+      `Processed ${uploadedFiles.length} file(s) into ${analysisResults.length} analysis result(s)`
+    );
 
     console.log(
       `Sending response with ${uploadedFiles.length} files and ${analysisResults.length} analyses`

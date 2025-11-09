@@ -338,37 +338,102 @@ function App() {
     return tableData;
   };
 
-  // Aggregate data across all files/weeks and calculate week-to-week changes
+  // Detect time unit from analysis text and file names
+  const detectTimeUnit = () => {
+    // Check analysis text for time unit keywords
+    const analysisText = analysisResults
+      .map((a) => a?.analysis || "")
+      .join(" ")
+      .toLowerCase();
+    
+    // Check file names for time unit keywords
+    const fileNamesText = uploadedFiles
+      .map((f) => f?.name || "")
+      .join(" ")
+      .toLowerCase();
+
+    const combinedText = analysisText + " " + fileNamesText;
+
+    // Check if any file name contains time unit keywords
+    const hasDayInFileName = uploadedFiles.some((f) => 
+      f?.name?.toLowerCase().includes("day")
+    );
+    const hasWeekInFileName = uploadedFiles.some((f) => 
+      f?.name?.toLowerCase().includes("week")
+    );
+    const hasMonthInFileName = uploadedFiles.some((f) => 
+      f?.name?.toLowerCase().includes("month")
+    );
+
+    // Priority order: day > week > month
+    if (
+      combinedText.includes("daily") ||
+      combinedText.includes(" per day") ||
+      combinedText.includes("day ") ||
+      hasDayInFileName
+    ) {
+      return { unit: "day", label: "Day", plural: "days" };
+    }
+    
+    if (
+      combinedText.includes("weekly") ||
+      combinedText.includes(" per week") ||
+      combinedText.includes("week ") ||
+      hasWeekInFileName
+    ) {
+      return { unit: "week", label: "Week", plural: "weeks" };
+    }
+    
+    if (
+      combinedText.includes("monthly") ||
+      combinedText.includes(" per month") ||
+      combinedText.includes("month ") ||
+      hasMonthInFileName
+    ) {
+      return { unit: "month", label: "Month", plural: "months" };
+    }
+
+    // Default to "Period" if no time unit detected
+    return { unit: "period", label: "Period", plural: "periods" };
+  };
+
+  // Aggregate data across all files/periods and calculate period-to-period changes
   const aggregateAnalysisData = () => {
     if (!analysisResults || analysisResults.length === 0) {
-      return { items: [], weeks: [] };
+      return { items: [], periods: [], timeUnit: { unit: "period", label: "Period", plural: "periods" } };
     }
+
+    // Detect time unit
+    const timeUnit = detectTimeUnit();
 
     // Use current vendorMap from state
     const currentVendorMap = vendorMap;
 
     // Parse all analysis results and group by item name
-    const itemMap = new Map(); // itemName -> { weeks: [], netChange: 0 }
-    const weekData = [];
+    const itemMap = new Map(); // itemName -> { periods: [], netChange: 0 }
+    const periodData = [];
 
-    analysisResults.forEach((analysis, weekIndex) => {
+    // Process ALL analysis results - each one becomes a period (day/week/month)
+    // This ensures every individual day/week/month is captured and displayed
+    analysisResults.forEach((analysis, periodIndex) => {
       if (!analysis || !analysis.analysis) return;
 
-      const weekItems = parseAnalysisForNumericalData(analysis.analysis);
-      weekData.push({
-        week: weekIndex + 1,
-        items: weekItems,
+      const periodItems = parseAnalysisForNumericalData(analysis.analysis);
+      // Create a period for each analysis result - no filtering, all periods are included
+      periodData.push({
+        period: periodIndex + 1,
+        items: periodItems,
       });
 
-      // Group items by name across weeks
-      weekItems.forEach((item) => {
+      // Group items by name across periods
+      periodItems.forEach((item) => {
         const itemName = item.item.trim();
         if (!itemMap.has(itemName)) {
           itemMap.set(itemName, {
             name: itemName,
-            weeks: [],
-            firstWeekValue: null,
-            lastWeekValue: null,
+            periods: [],
+            firstPeriodValue: null,
+            lastPeriodValue: null,
             netChange: 0,
             netChangePercent: 0,
             priority: item.priority || 999, // Default to high number if no priority
@@ -401,8 +466,8 @@ function App() {
           itemData.vendor = vendor;
         }
         
-        itemData.weeks.push({
-          week: weekIndex + 1,
+        itemData.periods.push({
+          period: periodIndex + 1,
           quantityUsed: item.quantityUsed,
           recommendedRestock: item.recommendedRestock,
           change: item.change,
@@ -411,20 +476,20 @@ function App() {
           totalCost: item.totalCost || 0,
         });
 
-        // Track first and last week values for net change calculation
-        if (itemData.firstWeekValue === null) {
-          itemData.firstWeekValue = item.quantityUsed;
+        // Track first and last period values for net change calculation
+        if (itemData.firstPeriodValue === null) {
+          itemData.firstPeriodValue = item.quantityUsed;
         }
-        itemData.lastWeekValue = item.recommendedRestock;
+        itemData.lastPeriodValue = item.recommendedRestock;
       });
     });
 
     // Calculate net change per item
     const items = Array.from(itemMap.values()).map((item) => {
-      const netChange = item.lastWeekValue - item.firstWeekValue;
+      const netChange = item.lastPeriodValue - item.firstPeriodValue;
       const netChangePercent =
-        item.firstWeekValue > 0
-          ? ((netChange / item.firstWeekValue) * 100).toFixed(1)
+        item.firstPeriodValue > 0
+          ? ((netChange / item.firstPeriodValue) * 100).toFixed(1)
           : 0;
 
       return {
@@ -444,8 +509,8 @@ function App() {
       }
       
       // If same priority, sort by cost per item (higher cost first)
-      const aCost = a.weeks.find((w) => w.costPerUnit > 0)?.costPerUnit || 0;
-      const bCost = b.weeks.find((w) => w.costPerUnit > 0)?.costPerUnit || 0;
+      const aCost = a.periods.find((p) => p.costPerUnit > 0)?.costPerUnit || 0;
+      const bCost = b.periods.find((p) => p.costPerUnit > 0)?.costPerUnit || 0;
       if (Math.abs(aCost - bCost) > 0.01) {
         return bCost - aCost;
       }
@@ -456,23 +521,23 @@ function App() {
 
     // Check if any items have cost data
     const hasCostData = items.some((item) =>
-      item.weeks.some((w) => w.totalCost > 0 || w.costPerUnit > 0)
+      item.periods.some((p) => p.totalCost > 0 || p.costPerUnit > 0)
     );
 
-    return { items, weeks: weekData, hasCostData };
+    return { items, periods: periodData, hasCostData, timeUnit };
   };
 
-  // Render numerical analysis view as ledger/spreadsheet with multi-week tracking
+  // Render numerical analysis view as ledger/spreadsheet with multi-period tracking
   const renderNumericalAnalysis = () => {
     if (!analysisResults || analysisResults.length === 0) {
       return (
         <p className="result-placeholder">
-          Upload files to see weekly change analysis...
+          Upload files to see change analysis...
         </p>
       );
     }
 
-    const { items, weeks, hasCostData } = aggregateAnalysisData();
+    const { items, periods, hasCostData, timeUnit } = aggregateAnalysisData();
 
     if (items.length === 0) {
       return (
@@ -482,10 +547,10 @@ function App() {
       );
     }
 
-    // Build table headers dynamically based on number of weeks
-    const weekHeaders = weeks.map((w) => (
-      <th key={`week-${w.week}`} className="ledger-col-number">
-        Week {w.week}
+    // Build table headers dynamically based on number of periods
+    const periodHeaders = periods.map((p) => (
+      <th key={`period-${p.period}`} className="ledger-col-number ledger-period-col">
+        {timeUnit.label} {p.period}
       </th>
     ));
 
@@ -493,8 +558,7 @@ function App() {
       <div className="numerical-analysis ledger-view">
         <div className="ledger-header">
           <h4>
-            Inventory Ledger - Multi-Week Analysis ({weeks.length} week
-            {weeks.length !== 1 ? "s" : ""})
+            Inventory Ledger - Multi-{timeUnit.label} Analysis ({periods.length} {timeUnit.plural})
           </h4>
         </div>
         <div className="ledger-table-container">
@@ -502,7 +566,7 @@ function App() {
             <thead>
               <tr>
                 <th className="ledger-col-item">Item</th>
-                {weekHeaders}
+                {periodHeaders}
                 <th className="ledger-col-number">Net Change</th>
                 <th className="ledger-col-number">% Change</th>
               </tr>
@@ -514,50 +578,50 @@ function App() {
                 const isSignificantIncrease = netChangePercent > 5;
                 const isSignificantDecrease = netChangePercent < -5;
 
-                // Build week cells
-                const weekCells = weeks.map((week) => {
-                  const weekItem = item.weeks.find((w) => w.week === week.week);
-                  if (!weekItem) {
+                // Build period cells
+                const periodCells = periods.map((period) => {
+                  const periodItem = item.periods.find((p) => p.period === period.period);
+                  if (!periodItem) {
                     return (
-                      <td key={`${index}-week-${week.week}`} className="ledger-number">
+                      <td key={`${index}-period-${period.period}`} className="ledger-number">
                         -
                       </td>
                     );
                   }
 
-                  // Calculate week-to-week change
-                  const prevWeek = item.weeks.find((w) => w.week === week.week - 1);
-                  let weekChange = 0;
-                  let displayValue = Math.round(weekItem.quantityUsed);
+                  // Calculate period-to-period change
+                  const prevPeriod = item.periods.find((p) => p.period === period.period - 1);
+                  let periodChange = 0;
+                  let displayValue = Math.round(periodItem.quantityUsed);
 
-                  if (prevWeek) {
-                    // Change from previous week's quantity used to current week's quantity used
-                    weekChange = Math.round(weekItem.quantityUsed - prevWeek.quantityUsed);
+                  if (prevPeriod) {
+                    // Change from previous period's quantity used to current period's quantity used
+                    periodChange = Math.round(periodItem.quantityUsed - prevPeriod.quantityUsed);
                   } else {
-                    // First week - no change to show (no previous week)
-                    weekChange = 0;
+                    // First period - no change to show (no previous period)
+                    periodChange = 0;
                   }
 
-                  const weekChangePercent =
-                    prevWeek && prevWeek.quantityUsed > 0
-                      ? ((weekChange / prevWeek.quantityUsed) * 100).toFixed(1)
+                  const periodChangePercent =
+                    prevPeriod && prevPeriod.quantityUsed > 0
+                      ? ((periodChange / prevPeriod.quantityUsed) * 100).toFixed(1)
                       : 0;
 
-                  const isWeekIncrease = parseFloat(weekChangePercent) > 5;
-                  const isWeekDecrease = parseFloat(weekChangePercent) < -5;
+                  const isPeriodIncrease = parseFloat(periodChangePercent) > 5;
+                  const isPeriodDecrease = parseFloat(periodChangePercent) < -5;
 
                   // Format: "value (change)" or just "value" if no change
-                  const changeDisplay = weekChange !== 0 
-                    ? ` (${weekChange > 0 ? "+" : ""}${weekChange})`
+                  const changeDisplay = periodChange !== 0 
+                    ? ` (${periodChange > 0 ? "+" : ""}${periodChange})`
                     : "";
 
                   return (
                     <td
-                      key={`${index}-week-${week.week}`}
-                      className={`ledger-number ledger-week-value ${
-                        isWeekIncrease
+                      key={`${index}-period-${period.period}`}
+                      className={`ledger-number ledger-period-value ledger-period-col ${
+                        isPeriodIncrease
                           ? "ledger-increase"
-                          : isWeekDecrease
+                          : isPeriodDecrease
                           ? "ledger-decrease"
                           : ""
                       }`}
@@ -570,7 +634,7 @@ function App() {
                 return (
                   <tr key={index} className="ledger-row">
                     <td className="ledger-item-name">{item.name}</td>
-                    {weekCells}
+                    {periodCells}
                     <td
                       className={`ledger-number ledger-change ${
                         isSignificantIncrease
@@ -601,24 +665,24 @@ function App() {
             </tbody>
           </table>
         </div>
-        {hasCostData && renderMoneyProfitTable(items, weeks)}
+        {hasCostData && renderMoneyProfitTable(items, periods, timeUnit)}
       </div>
     );
   };
 
   // Render money/profit analysis table
-  const renderMoneyProfitTable = (items, weeks) => {
-    // Build table headers dynamically based on number of weeks
-    const weekHeaders = weeks.map((w) => (
-      <th key={`money-week-${w.week}`} className="ledger-col-number">
-        Week {w.week}
+  const renderMoneyProfitTable = (items, periods, timeUnit) => {
+    // Build table headers dynamically based on number of periods
+    const periodHeaders = periods.map((p) => (
+      <th key={`money-period-${p.period}`} className="ledger-col-number ledger-period-col">
+        {timeUnit.label} {p.period}
       </th>
     ));
 
     return (
       <div className="money-profit-analysis">
         <div className="ledger-header" style={{ marginTop: "30px" }}>
-          <h4>Financial Analysis - Cost & Profit</h4>
+          <h4>Financial Analysis - Cost & Total Gain</h4>
         </div>
         <div className="ledger-table-container">
           <table className="ledger-table">
@@ -627,53 +691,46 @@ function App() {
                 <th className="ledger-col-item">Item</th>
                 <th className="ledger-col-item">Supplier</th>
                 <th className="ledger-col-number">Cost Per Item</th>
-                {weekHeaders}
-                <th className="ledger-col-number">Profit</th>
+                {periodHeaders}
+                <th className="ledger-col-number">Total Gain</th>
               </tr>
             </thead>
             <tbody>
               {items.map((item, index) => {
-                // Get cost per item from the analysis (use first available week's cost per unit)
+                // Get cost per item from the analysis (use first available period's cost per unit)
                 // This ensures it matches the text summary
-                const displayCostPerItem = item.weeks.find((w) => w.costPerUnit > 0)?.costPerUnit || 0;
+                const displayCostPerItem = item.periods.find((p) => p.costPerUnit > 0)?.costPerUnit || 0;
 
-                // Calculate total profit: sum of (quantity * cost per item) across all weeks
-                // Or if totalCost represents something else, we can adjust
-                // For now, calculating profit as total cost across weeks
-                const totalQuantity = item.weeks.reduce((sum, w) => sum + w.quantityUsed, 0);
-                const totalProfit = item.weeks.reduce((sum, w) => {
-                  // If we have cost per item, calculate profit as totalCost - (quantity * cost per item)
-                  // Otherwise, just use totalCost
-                  if (displayCostPerItem > 0) {
-                    return sum + (w.totalCost || 0) - (w.quantityUsed * displayCostPerItem);
-                  }
-                  return sum + (w.totalCost || 0);
+                // Calculate total gain: sum of all totalCost values across all periods for this item
+                // This represents the total combined money gained by this item individually
+                const totalGain = item.periods.reduce((sum, p) => {
+                  return sum + (p.totalCost || 0);
                 }, 0);
 
-                const isProfitPositive = totalProfit > 0;
-                const isProfitNegative = totalProfit < 0;
+                const isTotalGainPositive = totalGain > 0;
+                const isTotalGainNegative = totalGain < 0;
 
-                // Build week cells for money
-                const weekCells = weeks.map((week) => {
-                  const weekItem = item.weeks.find((w) => w.week === week.week);
-                  if (!weekItem || weekItem.totalCost === 0) {
+                // Build period cells for money
+                const periodCells = periods.map((period) => {
+                  const periodItem = item.periods.find((p) => p.period === period.period);
+                  if (!periodItem || periodItem.totalCost === 0) {
                     return (
-                      <td key={`${index}-money-week-${week.week}`} className="ledger-number">
+                      <td key={`${index}-money-period-${period.period}`} className="ledger-number">
                         -
                       </td>
                     );
                   }
 
-                  // Calculate week-to-week money change
-                  const prevWeek = item.weeks.find((w) => w.week === week.week - 1);
+                  // Calculate period-to-period money change
+                  const prevPeriod = item.periods.find((p) => p.period === period.period - 1);
                   let moneyChange = 0;
-                  let displayValue = weekItem.totalCost;
+                  let displayValue = periodItem.totalCost;
 
-                  if (prevWeek && prevWeek.totalCost > 0) {
-                    // Change from previous week's total cost to current week's total cost
-                    moneyChange = weekItem.totalCost - prevWeek.totalCost;
+                  if (prevPeriod && prevPeriod.totalCost > 0) {
+                    // Change from previous period's total cost to current period's total cost
+                    moneyChange = periodItem.totalCost - prevPeriod.totalCost;
                   } else {
-                    // First week - no change to show
+                    // First period - no change to show
                     moneyChange = 0;
                   }
 
@@ -688,8 +745,8 @@ function App() {
 
                   return (
                     <td
-                      key={`${index}-money-week-${week.week}`}
-                      className={`ledger-number ledger-week-value ${
+                      key={`${index}-money-period-${period.period}`}
+                      className={`ledger-number ledger-period-value ledger-period-col ${
                         isMoneyIncrease
                           ? "ledger-increase"
                           : isMoneyDecrease
@@ -709,17 +766,17 @@ function App() {
                     <td className="ledger-number">
                       {displayCostPerItem > 0 ? `$${displayCostPerItem.toFixed(2)}` : "-"}
                     </td>
-                    {weekCells}
+                    {periodCells}
                     <td
                       className={`ledger-number ledger-profit ${
-                        isProfitPositive
+                        isTotalGainPositive
                           ? "ledger-increase"
-                          : isProfitNegative
+                          : isTotalGainNegative
                           ? "ledger-decrease"
                           : ""
                       }`}
                     >
-                      ${totalProfit.toFixed(2)}
+                      ${totalGain.toFixed(2)}
                     </td>
                   </tr>
                 );
@@ -931,7 +988,7 @@ function App() {
                   renderNumericalAnalysis()
                 ) : (
                   <p className="result-placeholder">
-                    Upload files to see weekly change analysis...
+                    Upload files to see change analysis...
                   </p>
                 )}
               </div>

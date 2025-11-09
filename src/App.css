@@ -1,6 +1,6 @@
 .App {
   min-height: 100vh;
-  background: linear-gradient(135deg, #18230F 0%, #27391C 50%, #255F38 100%);
+  background: #253520;
   padding: 0;
 }
 
@@ -16,6 +16,8 @@
   top: 0;
   z-index: 1000;
   border-bottom: 1px solid rgba(37, 95, 56, 0.3);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .nav-logo-container {
@@ -860,29 +862,37 @@
   width: 100%;
   overflow-x: auto;
   overflow-y: visible;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on mobile */
 }
 
 .ledger-table {
-  width: 100%;
+  width: auto; /* Changed from 100% to auto to allow table to expand with many columns */
+  min-width: 100%;
+  max-width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem;
-  background: rgba(24, 35, 15, 0.3);
+  font-size: 0.8rem;
+  background: rgba(24, 35, 15, 0.3) !important;
   border: 1px solid rgba(37, 95, 56, 0.3);
+  table-layout: auto;
 }
 
 .ledger-table thead {
-  background: rgba(37, 95, 56, 0.4);
+  background: rgba(37, 95, 56, 0.4) !important;
   border-bottom: 2px solid rgba(37, 95, 56, 0.6);
 }
 
+.ledger-table thead th {
+  background: transparent !important;
+}
+
 .ledger-table th {
-  padding: 10px 12px;
+  padding: 8px 8px;
   text-align: left;
   font-weight: 700;
   color: #fff;
   text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.5px;
+  font-size: 0.7rem;
+  letter-spacing: 0.3px;
   border-right: 1px solid rgba(37, 95, 56, 0.3);
 }
 
@@ -892,39 +902,60 @@
 
 .ledger-table .ledger-col-item {
   text-align: left;
-  min-width: 180px;
+  min-width: 120px;
+  max-width: 150px;
 }
 
 .ledger-table .ledger-col-number {
   text-align: right;
-  min-width: 90px;
+  min-width: 70px;
+  max-width: 90px;
 }
 
-.ledger-week-value {
-  font-size: 0.8rem;
+/* Period columns - more compact to fit more periods */
+.ledger-table th.ledger-period-col {
+  min-width: 55px;
+  max-width: 70px;
+  padding: 6px 4px;
+  font-size: 0.65rem;
+  white-space: nowrap;
+}
+
+.ledger-table td.ledger-period-col {
+  padding: 5px 4px;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.ledger-week-value,
+.ledger-period-value {
+  font-size: 0.75rem;
 }
 
 .ledger-table tbody tr.ledger-row {
   border-bottom: 1px solid rgba(37, 95, 56, 0.2);
+  background: transparent !important;
   transition: background-color 0.15s ease;
 }
 
 .ledger-table tbody tr.ledger-row:hover {
-  background: rgba(37, 95, 56, 0.1);
+  background: rgba(37, 95, 56, 0.1) !important;
 }
 
 .ledger-table tbody tr.ledger-row:nth-child(even) {
-  background: rgba(24, 35, 15, 0.2);
+  background: rgba(24, 35, 15, 0.15) !important;
 }
 
 .ledger-table tbody tr.ledger-row:nth-child(even):hover {
-  background: rgba(37, 95, 56, 0.15);
+  background: rgba(37, 95, 56, 0.2) !important;
 }
 
 .ledger-table td {
-  padding: 8px 12px;
+  padding: 6px 8px;
   color: #e0e0e0;
   border-right: 1px solid rgba(37, 95, 56, 0.15);
+  font-size: 0.8rem;
+  background: transparent !important;
 }
 
 .ledger-table td:last-child {
@@ -934,10 +965,11 @@
 .ledger-item-name {
   font-weight: 500;
   color: #fff;
-  max-width: 200px;
+  max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 0.8rem;
 }
 
 .ledger-number {
@@ -955,12 +987,12 @@
 /* Color coding: Green for >5% increase, Red for >5% decrease */
 .ledger-increase {
   color: #4caf50 !important;
-  background: rgba(76, 175, 80, 0.1) !important;
+  background: transparent !important;
 }
 
 .ledger-decrease {
-  color: #f44336 !important;
-  background: rgba(244, 67, 54, 0.1) !important;
+  color: #d32f2f !important;
+  background: transparent !important;
 }
 
 /* Footer/Total Row */
