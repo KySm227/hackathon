@@ -253,6 +253,8 @@ function App() {
 
   if (isUploaded) {
     const selectedFile = uploadedFiles[selectedFileIndex] || null;
+    // ** ADDED: Get the analysis for the selected file
+    const selectedAnalysis = analysisResults[selectedFileIndex] || null;
 
     return (
       <div className="App">
@@ -404,14 +406,36 @@ function App() {
                 </p>
               </div>
             </div>
+            {/* ** MODIFIED: Popo's Receipt Summary Window ** */}
             <div className="result-window result-window-lower">
               <div className="panel-header">
                 <h3> Popo's Receipt Summary</h3>
               </div>
               <div className="result-content">
-                <p className="result-placeholder">
-                  Additional results will appear here...
-                </p>
+                {selectedAnalysis ? (
+                  selectedAnalysis.analysis ? (
+                    <div className="analysis-text">
+                      {selectedAnalysis.analysis}
+                    </div>
+                  ) : selectedAnalysis.error ? (
+                    <div className="analysis-error" style={{ margin: 20 }}>
+                      <p><strong>Analysis Error:</strong></p>
+                      <p>{selectedAnalysis.error}</p>
+                    </div>
+                  ) : (
+                    <p className="result-placeholder">
+                      Analysis is pending or not available for this file.
+                    </p>
+                  )
+                ) : uploadedFiles.length > 0 ? (
+                  <p className="result-placeholder">
+                    Select a file to see its analysis.
+                  </p>
+                ) : (
+                  <p className="result-placeholder">
+                    Additional results will appear here...
+                  </p>
+                )}
               </div>
             </div>
           </div>

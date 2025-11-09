@@ -43,6 +43,33 @@ const client = new OpenAI({
   baseURL: "https://integrate.api.nvidia.com/v1",
 });
 
+// The specific prompt for the AI model
+const ANALYSIS_PROMPT = `You are an intelligent financial and inventory assistant specializing in business expense analysis. Your task is to analyze raw receipt data, filter out non-essential personal items, and track only the most important groceries or operating expenses relevant to the stated business type.
+
+Business Context: Infer the business type (e.g., restaurant, office, retail) from the receipt items. This context is critical for assigning the priority of items (e.g., fresh produce is high priority for a cafe; printer ink is high priority for an office).
+
+Your final output MUST strictly adhere to the following two-part format:
+
+### 1. Summary of Changes and Business Focus
+
+* Provide a **very short, one-to-two-sentence summary** of your analysis.
+* State the inferred **type of business** this receipt likely pertains to.
+* Briefly mention the **key items prioritized** and the general category of items filtered out (e.g., "The focus was placed on fresh ingredients and essential dry goods, filtering out personal snacks and non-business consumables.").
+
+---
+
+### 2. Prioritized Essential Expense List
+
+* Create a detailed, ordered list of **only the items deemed necessary and relevant** for the continued operation of the business.
+* **Priority Level:** Assign the most critical, high-impact, and/or perishable items the lowest number (starting with **1**). Assign lower-priority, non-perishable, or less-frequently-needed items higher numbers.
+* The list must be presented as a clear Markdown table using the following five columns:
+
+| Priority | Item Description | Quantity/Unit | Cost | Notes (Business Justification) |
+| :---: | :--- | :--- | :--- | :--- |
+| **1** | [Highest Priority Item] | [Amount] | [Cost] | [Brief reason for high priority, e.g., "Core menu item," "Perishable," "Needed immediately"] |
+| **2** | [Next Item] | [Amount] | [Cost] | [Justification] |
+| ... | ... | ... | ... | ... |`;
+
 // File upload endpoint - automatically sends files to NVIDIA for analysis
 app.post("/api/upload", upload.array("files"), async (req, res) => {
   try {
@@ -51,7 +78,7 @@ app.post("/api/upload", upload.array("files"), async (req, res) => {
     }
 
     // Validate file types - accept .txt, .csv, and .pdf (PDFs are accepted but not parsed)
-    const allowedExtensions = ['.txt', '.csv', '.pdf'];
+    const allowedExtensions = [".txt", ".csv", ".pdf"];
     const invalidFiles = [];
     const validFiles = [];
 
@@ -71,15 +98,22 @@ app.post("/api/upload", upload.array("files"), async (req, res) => {
     }
 
     if (invalidFiles.length > 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: `Invalid file types. Only .txt, .csv, and .pdf files are accepted.`,
         invalidFiles: invalidFiles,
-        message: `Rejected ${invalidFiles.length} file(s): ${invalidFiles.join(', ')}`
+        message: `Rejected ${invalidFiles.length} file(s): ${invalidFiles.join(
+          ", "
+        )}`,
       });
     }
 
     if (validFiles.length === 0) {
-      return res.status(400).json({ error: "No valid files uploaded. Only .txt, .csv, and .pdf files are accepted." });
+      return res
+        .status(400)
+        .json({
+          error:
+            "No valid files uploaded. Only .txt, .csv, and .pdf files are accepted.",
+        });
     }
 
     const uploadedFiles = validFiles.map((file) => ({
@@ -90,32 +124,34 @@ app.post("/api/upload", upload.array("files"), async (req, res) => {
     }));
 
     console.log(`Successfully uploaded ${uploadedFiles.length} valid file(s)`);
-    
+
     // Process each file and send to NVIDIA model
     const analysisResults = [];
-    
+
     for (const file of validFiles) {
       try {
         // Read the uploaded file and convert it to a variable
         const fileData = await readFileForNvidia(file.path);
         console.log(`Processing file: ${file.originalname} (Text file)`);
-        
-        // Create prompt for text file analysis
-        const prompt = "Analyze this file content and provide a summary.";
-        
+
+        // **MODIFIED: Use the detailed analysis prompt**
+        const prompt = ANALYSIS_PROMPT;
+
         // Send the fileData to NVIDIA model for analysis
         const stream = await sendNemotronMessage(prompt, fileData);
-        
+
         // Collect the streaming response
         let output = "";
         for await (const chunk of stream) {
           const content = chunk.choices?.[0]?.delta?.content || "";
           output += content;
         }
-        
-        console.log(`Analysis output length: ${output.length} for ${file.originalname}`);
+
+        console.log(
+          `Analysis output length: ${output.length} for ${file.originalname}`
+        );
         console.log(`Analysis preview: ${output.substring(0, 100)}...`);
-        
+
         analysisResults.push({
           filename: file.filename,
           originalName: file.originalname,
@@ -123,10 +159,13 @@ app.post("/api/upload", upload.array("files"), async (req, res) => {
           fileType: "text",
           mimeType: fileData.mimeType,
         });
-        
+
         console.log(`Analysis completed for: ${file.originalname}`);
       } catch (analysisError) {
-        console.error(`Error analyzing file ${file.originalname}:`, analysisError);
+        console.error(
+          `Error analyzing file ${file.originalname}:`,
+          analysisError
+        );
         analysisResults.push({
           filename: file.filename,
           originalName: file.originalname,
@@ -135,10 +174,12 @@ app.post("/api/upload", upload.array("files"), async (req, res) => {
         });
       }
     }
-    
+
     // Ensure we have analysis results for all files
     if (analysisResults.length !== uploadedFiles.length) {
-      console.warn(`Mismatch: ${uploadedFiles.length} files but ${analysisResults.length} analyses`);
+      console.warn(
+        `Mismatch: ${uploadedFiles.length} files but ${analysisResults.length} analyses`
+      );
       // Add placeholder analyses for missing ones
       for (let i = analysisResults.length; i < uploadedFiles.length; i++) {
         analysisResults.push({
@@ -149,15 +190,20 @@ app.post("/api/upload", upload.array("files"), async (req, res) => {
         });
       }
     }
-    
-    console.log(`Sending response with ${uploadedFiles.length} files and ${analysisResults.length} analyses`);
-    console.log("Analysis results being sent:", analysisResults.map(a => ({
-      originalName: a.originalName,
-      hasAnalysis: !!a.analysis,
-      analysisLength: a.analysis?.length || 0,
-      error: a.error
-    })));
-    
+
+    console.log(
+      `Sending response with ${uploadedFiles.length} files and ${analysisResults.length} analyses`
+    );
+    console.log(
+      "Analysis results being sent:",
+      analysisResults.map((a) => ({
+        originalName: a.originalName,
+        hasAnalysis: !!a.analysis,
+        analysisLength: a.analysis?.length || 0,
+        error: a.error,
+      }))
+    );
+
     // Always send analyses array, even if empty
     res.json({
       message: "Files uploaded successfully and analyzed",
@@ -175,16 +221,16 @@ app.post("/api/upload", upload.array("files"), async (req, res) => {
         size: file.size,
         path: file.path,
       }));
-      
-      res.status(500).json({ 
+
+      res.status(500).json({
         error: "File upload failed: " + err.message,
         files: uploadedFiles,
-        analyses: uploadedFiles.map(file => ({
+        analyses: uploadedFiles.map((file) => ({
           filename: file.filename,
           originalName: file.originalName,
           analysis: null,
           error: err.message,
-        }))
+        })),
       });
     } else {
       res.status(500).json({ error: "File upload failed: " + err.message });
@@ -221,10 +267,11 @@ app.post("/api/analyze-file", async (req, res) => {
   try {
     // Read the uploaded file and convert it to a variable
     const fileData = await readFileForNvidia(filePath);
-    
+
     // Use the provided prompt or a default one
-    const analysisPrompt = prompt || 
-      (fileData.isImage 
+    const analysisPrompt =
+      prompt ||
+      (fileData.isImage
         ? "What do you see in this image? Describe it in detail."
         : "If youre reading this, say whats in the file.");
 
@@ -237,10 +284,10 @@ app.post("/api/analyze-file", async (req, res) => {
       output += chunk.choices?.[0]?.delta?.content || "";
     }
 
-    res.json({ 
+    res.json({
       reply: output,
       fileType: fileData.isImage ? "image" : "text",
-      mimeType: fileData.mimeType
+      mimeType: fileData.mimeType,
     });
   } catch (err) {
     console.error("File analysis error:", err);

@@ -814,9 +814,13 @@
   margin-left: 10px;
 }
 
+/* ** MODIFIED: Added white-space and font-family ** */
 .analysis-text {
   line-height: 1.8;
   color: #fff;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: Consolas, "Courier New", monospace;
 }
 
 .analysis-text p {
@@ -829,6 +833,7 @@
   background: rgba(255, 68, 68, 0.1);
   border: 1px solid rgba(255, 68, 68, 0.3);
   border-radius: 8px;
+  color: #ffcccc; /* Added color for error text */
 }
 
 .file-details {
